@@ -1,0 +1,12 @@
+# Editor backups
+*~
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit tokens)
+.env
+.env.*

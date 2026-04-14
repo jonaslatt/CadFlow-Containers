@@ -1,0 +1,29 @@
+{
+  "name": "CadFlow Dev",
+  "build": {
+    "dockerfile": "../Dockerfile.dev",
+    "context": ".."
+  },
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+  ],
+  "mounts": [
+    "source=cadflow-commandhistory,target=/commandhistory,type=volume",
+    "source=cadflow-workspace,target=/workspace,type=volume"
+  ],
+  "containerEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+  },
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

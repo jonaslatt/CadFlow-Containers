@@ -1,0 +1,122 @@
+# CadFlow Development Container
+# Runs Claude Code with --dangerously-skip-permissions for autonomous AI development.
+# All development happens inside this container; only .git origin lives outside.
+#
+# Build:
+#   docker build -f Dockerfile.dev -t cadflow-dev .
+#
+# Run (use .devcontainer/run.sh instead for convenience):
+#   export GH_TOKEN=ghp_...
+#   .devcontainer/run.sh shell    # interactive shell
+#   .devcontainer/run.sh claude   # Claude Code autonomous mode
+#
+# Auth: mount ~/.claude/ from host (subscription) or set ANTHROPIC_API_KEY (API billing)
+
+FROM node:20-bookworm
+
+ARG TZ=Europe/Zurich
+ENV TZ="$TZ"
+ARG CLAUDE_CODE_VERSION=latest
+
+# ============================================================
+# System packages
+# ============================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Claude Code dependencies
+    less git procps sudo fzf zsh man-db unzip gnupg2 jq nano vim curl wget tmux \
+    # Firewall (for Claude Code network restrictions)
+    iptables ipset iproute2 dnsutils aggregate \
+    # Python build dependencies
+    python3 python3-pip python3-venv python3-dev \
+    # OpenCASCADE/CadQuery runtime dependencies
+    libgl1-mesa-glx libglu1-mesa libx11-6 libxrender1 libxext6 \
+    libgomp1 \
+    # Podman for testing geometry worker sandboxing (optional)
+    podman fuse-overlayfs slirp4netns uidmap \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ============================================================
+# Python environment (CadQuery + tools)
+# ============================================================
+RUN python3 -m pip install --break-system-packages --no-cache-dir \
+    # Core CAD
+    cadquery \
+    ocp-tessellate \
+    # Meshing (V1.1 prep, available for testing)
+    gmsh \
+    # Backend framework
+    fastapi \
+    uvicorn[standard] \
+    websockets \
+    # Testing
+    pytest \
+    pytest-asyncio \
+    hypothesis \
+    # Utilities
+    httpx \
+    pydantic \
+    python-multipart
+
+# ============================================================
+# Node.js / pnpm (frontend tooling)
+# ============================================================
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Turborepo CLI
+RUN npm install -g turbo
+
+# ============================================================
+# Claude Code CLI
+# ============================================================
+RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+
+# ============================================================
+# User setup (non-root development)
+# ============================================================
+ARG USERNAME=node
+
+# Command history persistence
+RUN mkdir -p /commandhistory && \
+    touch /commandhistory/.bash_history && \
+    chown -R $USERNAME /commandhistory
+ENV HISTFILE=/commandhistory/.bash_history
+
+# Podman rootless support
+RUN echo "$USERNAME:100000:65536" >> /etc/subuid && \
+    echo "$USERNAME:100000:65536" >> /etc/subgid
+
+# Workspace and Claude config directories
+RUN mkdir -p /workspace /home/$USERNAME/.claude && \
+    chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.claude
+
+# Prevent zsh first-time setup prompt
+RUN touch /home/$USERNAME/.zshrc && chown $USERNAME:$USERNAME /home/$USERNAME/.zshrc
+
+# ============================================================
+# Firewall + entrypoint scripts
+# ============================================================
+COPY .devcontainer/init-firewall.sh /usr/local/bin/
+COPY .devcontainer/entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh && \
+    echo "$USERNAME ALL=(root) NOPASSWD: ALL" > /etc/sudoers.d/node-firewall && \
+    chmod 0440 /etc/sudoers.d/node-firewall
+
+# ============================================================
+# Git configuration (identity set at runtime via entrypoint)
+# ============================================================
+RUN git config --global init.defaultBranch main && \
+    git config --global pull.rebase false
+
+# ============================================================
+# Runtime configuration
+# ============================================================
+WORKDIR /workspace
+USER $USERNAME
+
+ENV DEVCONTAINER=true
+ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
+ENV PATH=$PATH:/usr/local/share/npm-global/bin
+ENV SHELL=/bin/zsh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/bin/zsh"]
