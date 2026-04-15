@@ -5,8 +5,12 @@ A Docker-based development environment for CadFlow that runs Claude Code in auto
 ## Prerequisites
 
 - Docker installed
-- A GitHub Personal Access Token (`GH_TOKEN`) with `repo` scope — [create one here](https://github.com/settings/tokens)
-- Claude authentication: either `ANTHROPIC_API_KEY` (API billing) or host `~/.claude/` credentials (subscription)
+- A GitHub Personal Access Token (`GH_TOKEN`) with the following permissions — [create one here](https://github.com/settings/tokens):
+  - **Contents**: read & write
+  - **Metadata**: read
+  - **Issues**: read
+  - **Pull requests**: read & write
+- `ANTHROPIC_API_KEY` — required for the CadFlow server's Claude Agent SDK integration (and also used by the Claude Code CLI if present). Host `~/.claude/` credentials alone are enough for the CLI but **not** for the server.
 
 ## Quick Start
 
@@ -29,7 +33,21 @@ docker build -f Dockerfile.dev -t cadflow-dev .
 
 ## Authentication
 
+### Claude Code CLI
+
 The run script mounts your host `~/.claude/` directory into the container for OAuth credentials (subscription login). If you use API billing instead, set `ANTHROPIC_API_KEY` before running.
+
+### CadFlow Server (Agent API Key)
+
+The FastAPI backend uses the Claude Agent SDK to power the chat-driven CAD workflow. It calls the Anthropic API directly, so it **always** requires `ANTHROPIC_API_KEY` — mounted `~/.claude/` credentials are not sufficient for the server.
+
+Set the key before starting the container:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The key is passed into the container by `run.sh` and used at runtime by the FastAPI process. Without it the server starts but all agent/chat requests will fail.
 
 ## What's in the Container
 
@@ -50,6 +68,14 @@ The run script mounts your host `~/.claude/` directory into the container for OA
   init-firewall.sh    # Optional outbound network restrictions
 Dockerfile.dev        # Container image definition
 ```
+
+## NVIDIA GPU Access
+
+The `run.sh` script already passes `--gpus all` and `--device /dev/dri` to Docker, so GPU devices are forwarded into the container automatically. To make this work you need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host.
+
+Verify it works by running `nvidia-smi` inside the container:
+
+If you do **not** have an NVIDIA GPU (or don't need GPU access), remove the `--gpus all` and `--device /dev/dri` lines from `run.sh` to avoid Docker errors on startup.
 
 ## Network Firewall (Optional)
 
