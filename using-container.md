@@ -55,7 +55,7 @@ The key is passed into the container by `run.sh` and used at runtime by the Fast
 |-----------|---------|
 | **Python** | CadQuery, ocp-tessellate, gmsh, FastAPI, uvicorn, pytest |
 | **Node.js** | pnpm, Turborepo, Claude Code CLI |
-| **System** | Git, iptables (optional firewall), Podman (for sandbox testing) |
+| **System** | Git, tmux (**required**), iptables (optional firewall), Podman (for sandbox testing) |
 | **Ports** | 3000 (frontend), 8000 (backend API) |
 
 ## File Layout
@@ -76,6 +76,16 @@ The `run.sh` script already passes `--gpus all` and `--device /dev/dri` to Docke
 Verify it works by running `nvidia-smi` inside the container:
 
 If you do **not** have an NVIDIA GPU (or don't need GPU access), remove the `--gpus all` and `--device /dev/dri` lines from `run.sh` to avoid Docker errors on startup.
+
+## tmux (Required)
+
+**tmux is a hard requirement for the agent inside the container.** Claude Code relies on tmux for:
+
+- **Background process management** — starting and monitoring long-running commands (dev servers, build processes, test suites) without blocking the main session.
+- **Terminal multiplexing** — running parallel workstreams (e.g., watching a build in one pane while editing in another).
+- **Process output capture** — reading stdout/stderr from background processes after they complete.
+
+Without tmux, Claude Code loses the ability to manage concurrent terminal sessions, which severely limits its effectiveness as an autonomous agent. The Dockerfile already installs tmux as a system package — do **not** remove it.
 
 ## Network Firewall (Optional)
 

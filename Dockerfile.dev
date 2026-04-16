@@ -22,7 +22,8 @@ ARG CLAUDE_CODE_VERSION=latest
 # System packages
 # ============================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Claude Code dependencies
+    # Claude Code dependencies (tmux is REQUIRED — Claude Code uses it for
+    # background process management, long-running commands, and terminal multiplexing)
     less git procps sudo fzf zsh man-db unzip gnupg2 jq nano vim curl wget tmux \
     # Firewall (for Claude Code network restrictions)
     iptables ipset iproute2 dnsutils aggregate \
