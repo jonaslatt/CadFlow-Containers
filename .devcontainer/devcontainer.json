@@ -13,7 +13,8 @@
     "source=cadflow-workspace,target=/workspace,type=volume"
   ],
   "containerEnv": {
-    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "CADFLOW_ANTHROPIC_API_KEY": "${localEnv:CADFLOW_ANTHROPIC_API_KEY}"
   },
   "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
   "remoteUser": "node",

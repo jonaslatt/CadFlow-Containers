@@ -7,10 +7,12 @@
 #
 # Run (use .devcontainer/run.sh instead for convenience):
 #   export GH_TOKEN=ghp_...
+#   export CADFLOW_ANTHROPIC_API_KEY=sk-ant-...   # required for CadFlow API server
 #   .devcontainer/run.sh shell    # interactive shell
 #   .devcontainer/run.sh claude   # Claude Code autonomous mode
 #
 # Auth: mount ~/.claude/ from host (subscription) or set ANTHROPIC_API_KEY (API billing)
+# API:  CADFLOW_ANTHROPIC_API_KEY must be set on the host — run.sh passes it into the container
 
 FROM node:20-bookworm
 
@@ -56,7 +58,9 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir \
     # Utilities
     httpx \
     pydantic \
-    python-multipart
+    python-multipart \
+    # LSP (Claude Code plugin)
+    pyright
 
 # ============================================================
 # Node.js / pnpm (frontend tooling)
@@ -71,8 +75,8 @@ ENV PATH=$NPM_CONFIG_PREFIX/bin:$PATH
 
 RUN mkdir -p $NPM_CONFIG_PREFIX && chown -R node:node $NPM_CONFIG_PREFIX
 
-# Turborepo CLI
-RUN npm install -g turbo
+# Turborepo CLI + LSP (Claude Code plugins)
+RUN npm install -g turbo typescript typescript-language-server
 
 # ============================================================
 # Claude Code CLI

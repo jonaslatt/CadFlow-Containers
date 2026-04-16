@@ -2,7 +2,8 @@
 # Launch the CadFlow dev container with Claude Code in autonomous mode.
 #
 # Prerequisites:
-#   - ANTHROPIC_API_KEY set in environment
+#   - ANTHROPIC_API_KEY set in environment (Claude Code billing)
+#   - CADFLOW_ANTHROPIC_API_KEY set in environment (CadFlow API server)
 #   - Docker installed
 #   - Image built: docker build -f Dockerfile.dev -t cadflow-dev .
 #
@@ -26,6 +27,12 @@ if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ ! -d "$HOME/.claude" ]; then
     echo "then your ~/.claude/ will be mounted into the container."
 fi
 
+if [ -z "${CADFLOW_ANTHROPIC_API_KEY:-}" ]; then
+    echo "Warning: CADFLOW_ANTHROPIC_API_KEY not set."
+    echo "The CadFlow API server needs this to call Claude. Set it on your host:"
+    echo "  export CADFLOW_ANTHROPIC_API_KEY=sk-ant-..."
+fi
+
 IMAGE_NAME="cadflow-dev"
 CONTAINER_NAME="cadflow-dev-1"
 WORKSPACE_VOL="cadflow-workspace"
@@ -46,6 +53,7 @@ DOCKER_ARGS=(
     --cap-add=NET_ADMIN
     --cap-add=NET_RAW
     ${ANTHROPIC_API_KEY:+-e "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY"}
+    ${CADFLOW_ANTHROPIC_API_KEY:+-e "CADFLOW_ANTHROPIC_API_KEY=$CADFLOW_ANTHROPIC_API_KEY"}
     -e "GH_TOKEN=$GH_TOKEN"
     # Mount host Claude credentials (OAuth login from subscription)
     -v "$HOME/.claude:/home/node/.claude"
