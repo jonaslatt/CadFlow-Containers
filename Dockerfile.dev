@@ -63,6 +63,14 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir \
 # ============================================================
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
+# ============================================================
+# User-writable global npm prefix (so Claude Code can auto-update)
+# ============================================================
+ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
+ENV PATH=$NPM_CONFIG_PREFIX/bin:$PATH
+
+RUN mkdir -p $NPM_CONFIG_PREFIX && chown -R node:node $NPM_CONFIG_PREFIX
+
 # Turborepo CLI
 RUN npm install -g turbo
 
@@ -70,6 +78,9 @@ RUN npm install -g turbo
 # Claude Code CLI
 # ============================================================
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+
+# Ensure the node user owns everything in the prefix
+RUN chown -R node:node $NPM_CONFIG_PREFIX
 
 # ============================================================
 # User setup (non-root development)
@@ -115,8 +126,6 @@ WORKDIR /workspace
 USER $USERNAME
 
 ENV DEVCONTAINER=true
-ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin
 ENV SHELL=/bin/zsh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
