@@ -63,6 +63,18 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir \
     pyright
 
 # ============================================================
+# Serena MCP server (semantic code tools for Claude Code)
+# Installed as an isolated uv tool so its deps don't collide with the
+# system Python packages above. The `serena` binary lands in /usr/local/bin,
+# which matches the `command: serena` entry in the host ~/.claude.json that
+# gets bind-mounted into the container.
+# ============================================================
+RUN python3 -m pip install --break-system-packages --no-cache-dir uv
+ENV UV_TOOL_DIR=/usr/local/share/uv-tools
+ENV UV_TOOL_BIN_DIR=/usr/local/bin
+RUN uv tool install serena-agent
+
+# ============================================================
 # Node.js / pnpm (frontend tooling)
 # ============================================================
 RUN corepack enable && corepack prepare pnpm@latest --activate
