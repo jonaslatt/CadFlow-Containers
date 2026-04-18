@@ -20,5 +20,45 @@ fi
 # Uncomment to restrict outbound network:
 # sudo /usr/local/bin/init-firewall.sh
 
+# ----------------------------------------------------------------------
+# Enable Claude Code plugins for the /workspace project.
+#
+# ~/.claude is bind-mounted from the host, so the plugin cache and
+# marketplace registry already exist. But the host's installed_plugins.json
+# scopes the plugins to the host project path (/home/jonas/git/cad-ui),
+# and the host's project-level settings.json isn't visible in /workspace.
+# This block makes the plugins active for Claude running in /workspace.
+# ----------------------------------------------------------------------
+PLUGINS=(
+    "pyright-lsp@claude-plugins-official"
+    "typescript-lsp@claude-plugins-official"
+)
+
+WORKSPACE_SETTINGS="/workspace/.claude/settings.json"
+mkdir -p "$(dirname "$WORKSPACE_SETTINGS")"
+[ -f "$WORKSPACE_SETTINGS" ] || echo '{}' > "$WORKSPACE_SETTINGS"
+
+JQ_FILTER='.enabledPlugins = ((.enabledPlugins // {}) + $p)'
+PLUGIN_OBJ=$(printf '"%s":true,' "${PLUGINS[@]}")
+PLUGIN_OBJ="{${PLUGIN_OBJ%,}}"
+TMP=$(mktemp)
+jq --argjson p "$PLUGIN_OBJ" "$JQ_FILTER" "$WORKSPACE_SETTINGS" > "$TMP" \
+    && mv "$TMP" "$WORKSPACE_SETTINGS"
+
+INSTALLED="$HOME/.claude/plugins/installed_plugins.json"
+if [ -f "$INSTALLED" ]; then
+    for plugin in "${PLUGINS[@]}"; do
+        TMP=$(mktemp)
+        jq --arg name "$plugin" --arg path "/workspace" '
+          .plugins[$name] //= [] |
+          if (.plugins[$name] | map(.projectPath) | index($path)) == null
+             and (.plugins[$name] | length) > 0
+          then
+            .plugins[$name] += [ .plugins[$name][0] * {projectPath: $path} ]
+          else . end
+        ' "$INSTALLED" > "$TMP" && mv "$TMP" "$INSTALLED"
+    done
+fi
+
 # Run whatever command was passed (claude, zsh, etc.)
 exec "$@"
