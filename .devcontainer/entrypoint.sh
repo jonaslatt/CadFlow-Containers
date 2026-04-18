@@ -21,11 +21,31 @@ fi
 # sudo /usr/local/bin/init-firewall.sh
 
 # ----------------------------------------------------------------------
+# Bridge host home path to container home.
+#
+# The bind-mounted ~/.claude/plugins/known_marketplaces.json and
+# installed_plugins.json store absolute paths under the host's home
+# (e.g. /home/jonas/.claude/plugins/...). Inside the container the
+# home is /home/node, so without a symlink Claude can't find the
+# marketplace or plugin cache and reports "not found in marketplace".
+# ----------------------------------------------------------------------
+HOST_HOME=$(
+    jq -r '
+        .. | objects | (.installLocation? // .installPath? // empty)
+    ' ~/.claude/plugins/known_marketplaces.json \
+       ~/.claude/plugins/installed_plugins.json 2>/dev/null \
+    | grep -oE '^/home/[^/]+' | sort -u | head -1
+)
+if [ -n "$HOST_HOME" ] && [ "$HOST_HOME" != "$HOME" ] && [ ! -e "$HOST_HOME" ]; then
+    sudo ln -sfn "$HOME" "$HOST_HOME"
+fi
+
+# ----------------------------------------------------------------------
 # Enable Claude Code plugins for the /workspace project.
 #
 # ~/.claude is bind-mounted from the host, so the plugin cache and
 # marketplace registry already exist. But the host's installed_plugins.json
-# scopes the plugins to the host project path (/home/jonas/git/cad-ui),
+# scopes the plugins to the host project path (e.g. /home/jonas/git/cad-ui),
 # and the host's project-level settings.json isn't visible in /workspace.
 # This block makes the plugins active for Claude running in /workspace.
 # ----------------------------------------------------------------------
@@ -44,21 +64,6 @@ PLUGIN_OBJ="{${PLUGIN_OBJ%,}}"
 TMP=$(mktemp)
 jq --argjson p "$PLUGIN_OBJ" "$JQ_FILTER" "$WORKSPACE_SETTINGS" > "$TMP" \
     && mv "$TMP" "$WORKSPACE_SETTINGS"
-
-INSTALLED="$HOME/.claude/plugins/installed_plugins.json"
-if [ -f "$INSTALLED" ]; then
-    for plugin in "${PLUGINS[@]}"; do
-        TMP=$(mktemp)
-        jq --arg name "$plugin" --arg path "/workspace" '
-          .plugins[$name] //= [] |
-          if (.plugins[$name] | map(.projectPath) | index($path)) == null
-             and (.plugins[$name] | length) > 0
-          then
-            .plugins[$name] += [ .plugins[$name][0] * {projectPath: $path} ]
-          else . end
-        ' "$INSTALLED" > "$TMP" && mv "$TMP" "$INSTALLED"
-    done
-fi
 
 # Run whatever command was passed (claude, zsh, etc.)
 exec "$@"
