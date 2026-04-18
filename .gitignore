@@ -10,3 +10,6 @@ Thumbs.db
 # Secrets (never commit tokens)
 .env
 .env.*
+
+# Claude Code per-user settings (permissions allow-list)
+.claude/settings.local.json
