@@ -83,12 +83,40 @@ case "${1:-shell}" in
                 -- claude --dangerously-skip-permissions
         fi
         ;;
+    implement)
+        shift
+        PLAN="${1:-}"
+        if [ -z "$PLAN" ]; then
+            echo "Usage: $0 implement <plan-file>  (relative to CadFlow root)"
+            exit 1
+        fi
+        echo "Running implementation plan: $PLAN"
+        docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME" \
+            -- bash /workspace/scripts/run-plan.sh "/workspace/$PLAN"
+        ;;
+    debug-loop)
+        echo "Starting debug loop"
+        docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME" \
+            -- bash -c 'claude -p "$(cat /workspace/ia-workflows/debug-loop.md)"'
+        ;;
+    full-review)
+        shift
+        PLAN="${1:-}"
+        BRANCH="${2:-}"
+        if [ -z "$PLAN" ]; then
+            echo "Usage: $0 full-review <plan-file> [branch-name]  (plan relative to CadFlow root)"
+            exit 1
+        fi
+        echo "Running full review: $PLAN"
+        docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME" \
+            -- bash /workspace/scripts/run-review-followups.sh "/workspace/$PLAN" ${BRANCH:+"$BRANCH"}
+        ;;
     shell)
         echo "Starting interactive shell"
         docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME"
         ;;
     *)
-        echo "Usage: $0 [shell|claude] [task]"
+        echo "Usage: $0 [shell|claude|implement|debug-loop|full-review] [args]"
         exit 1
         ;;
 esac
