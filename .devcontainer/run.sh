@@ -9,8 +9,10 @@
 #
 # Usage:
 #   .devcontainer/run.sh              # Interactive shell
-#   .devcontainer/run.sh claude       # Start Claude Code autonomously
+#   .devcontainer/run.sh claude       # Start Claude Code (interactive, skip-permissions)
 #   .devcontainer/run.sh claude "task" # Start Claude with a specific task
+#   .devcontainer/run.sh implement <plan>   # Run an implementation plan
+#   .devcontainer/run.sh full-review <plan> [branch]  # Run review + follow-ups
 
 set -euo pipefail
 
@@ -94,11 +96,6 @@ case "${1:-shell}" in
         docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME" \
             -- bash /workspace/scripts/run-plan.sh "/workspace/$PLAN"
         ;;
-    debug-loop)
-        echo "Starting debug loop"
-        docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME" \
-            -- bash -c 'claude -p "$(cat /workspace/ia-workflows/debug-loop.md)"'
-        ;;
     full-review)
         shift
         PLAN="${1:-}"
@@ -116,7 +113,7 @@ case "${1:-shell}" in
         docker run "${DOCKER_ARGS[@]}" "$IMAGE_NAME"
         ;;
     *)
-        echo "Usage: $0 [shell|claude|implement|debug-loop|full-review] [args]"
+        echo "Usage: $0 [shell|claude|implement|full-review] [args]"
         exit 1
         ;;
 esac

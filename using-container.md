@@ -33,64 +33,76 @@ docker build -f Dockerfile.dev -t cadflow-dev .
 
 ## Authentication
 
-### Claude Code CLI
+**Claude Code CLI** — The run script mounts your host `~/.claude/` directory into the container for OAuth credentials. If you use API billing instead, set `ANTHROPIC_API_KEY` before running.
 
-The run script mounts your host `~/.claude/` directory into the container for OAuth credentials (subscription login). If you use API billing instead, set `ANTHROPIC_API_KEY` before running.
-
-### CadFlow Server (Agent API Key)
-
-The FastAPI backend uses the Claude Agent SDK to power the chat-driven CAD workflow. It calls the Anthropic API directly, so it **always** requires `ANTHROPIC_API_KEY` — mounted `~/.claude/` credentials are not sufficient for the server.
-
-Set the key before starting the container:
+**CadFlow server** — The FastAPI backend calls the Anthropic API directly via the Claude Agent SDK, so it always requires `ANTHROPIC_API_KEY`. Mounted `~/.claude/` credentials are not sufficient.
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-The key is passed into the container by `run.sh` and used at runtime by the FastAPI process. Without it the server starts but all agent/chat requests will fail.
+Without it the server starts but all agent/chat requests will fail.
 
-## What's in the Container
+## Container Contents
 
 | Component | Details |
 |-----------|---------|
 | **Python** | CadQuery, ocp-tessellate, gmsh, FastAPI, uvicorn, pytest |
 | **Node.js** | pnpm, Turborepo, Claude Code CLI |
-| **System** | Git, tmux (**required**), iptables (optional firewall), Podman (for sandbox testing) |
+| **System** | Git, tmux (required), iptables (optional firewall), Podman (for sandbox testing) |
 | **Ports** | 3000 (frontend), 8000 (backend API) |
 
-## File Layout
+## Automated Actions
+
+These actions run non-interactively via the run script:
+
+```bash
+# Run an implementation plan
+.devcontainer/run.sh implement <plan-file>
+
+# Run review + follow-up fixes (branch is optional)
+.devcontainer/run.sh full-review <plan-file> [branch]
+```
+
+Plan files are resolved relative to `/workspace` inside the container.
+
+## Debug Loop
+
+The debug loop is an autonomous Claude Code session that continuously runs tests, identifies failures, and applies fixes. It must be started manually:
+
+```bash
+# 1. Start an interactive shell in the container
+.devcontainer/run.sh shell
+
+# 2. Inside the container, start tmux
+tmux
+
+# 3. Start Claude Code
+claude --dangerously-skip-permissions
+```
+
+Then at the Claude Code prompt, enter:
 
 ```
-.devcontainer/
-  devcontainer.json   # VS Code Dev Container config
-  run.sh              # Container launch script
-  entrypoint.sh       # Git credentials + firewall setup
-  init-firewall.sh    # Optional outbound network restrictions
-Dockerfile.dev        # Container image definition
+Read ai-workflows/debug-loop.md and execute the startup procedure. Then start the autonomous debug loop as described in that document.
 ```
 
-## NVIDIA GPU Access
+See [ai-workflows/debug-loop.md](../ai-workflows/debug-loop.md) for the full procedure.
 
-The `run.sh` script already passes `--gpus all` and `--device /dev/dri` to Docker, so GPU devices are forwarded into the container automatically. To make this work you need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host.
+## GPU Setup
 
-Verify it works by running `nvidia-smi` inside the container:
+The `run.sh` script passes `--gpus all` and `--device /dev/dri` to Docker automatically. This requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host.
 
-If you do **not** have an NVIDIA GPU (or don't need GPU access), remove the `--gpus all` and `--device /dev/dri` lines from `run.sh` to avoid Docker errors on startup.
-
-## tmux (Required)
-
-**tmux is a hard requirement for the agent inside the container.** Claude Code relies on tmux for:
-
-- **Background process management** — starting and monitoring long-running commands (dev servers, build processes, test suites) without blocking the main session.
-- **Terminal multiplexing** — running parallel workstreams (e.g., watching a build in one pane while editing in another).
-- **Process output capture** — reading stdout/stderr from background processes after they complete.
-
-Without tmux, Claude Code loses the ability to manage concurrent terminal sessions, which severely limits its effectiveness as an autonomous agent. The Dockerfile already installs tmux as a system package — do **not** remove it.
+If you don't have an NVIDIA GPU, remove the `--gpus all` and `--device /dev/dri` lines from `run.sh` to avoid Docker errors.
 
 ## Network Firewall (Optional)
 
-The container includes an iptables-based firewall (`init-firewall.sh`) that restricts outbound traffic to approved domains only (Anthropic API, GitHub, npm, PyPI). It is disabled by default in the entrypoint — uncomment the line in `entrypoint.sh` to enable it.
+The container includes an iptables-based firewall (`init-firewall.sh`) that restricts outbound traffic to approved domains (Anthropic API, GitHub, npm, PyPI). It is disabled by default — uncomment the relevant line in `entrypoint.sh` to enable it.
+
+## tmux
+
+**tmux is required inside the container.** Claude Code uses it to manage background processes (dev servers, build processes, test suites) and to capture their output. Without tmux, Claude Code cannot run parallel workstreams. It is pre-installed in the image.
 
 ## Remote Server Access
 
-See [client-server.md](client-server.md) for instructions on running the container on a remote server and accessing it via SSH tunnel.
+See [client-server.md](client-server.md) for running the container on a remote server and accessing it via SSH tunnel.

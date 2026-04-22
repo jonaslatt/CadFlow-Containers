@@ -6,10 +6,10 @@ Development container setup for CadFlow — an agentic CAD tool built on CadQuer
 
 - **[Dockerfile.dev](Dockerfile.dev)** — Container image with CadQuery, Node.js, pnpm, Claude Code, and all dependencies
 - **[.devcontainer/](.devcontainer/)** — Launch scripts, firewall, and VS Code Dev Container config
-- **[using-container.md](using-container.md)** — How to build and run the container
+- **[ai-workflows/](ai-workflows/)** — Autonomous AI workflow definitions (debug loop, etc.)
+- **[using-container.md](using-container.md)** — How to build, run, and use the container
 - **[client-server.md](client-server.md)** — Remote server access via SSH tunnel
 - **[adr/](adr/)** — Architecture Decision Records for CadFlow
-- **[PROMPT_ADR_GENERATION.md](PROMPT_ADR_GENERATION.md)** — Prompt used to generate the ADRs
 
 ## Quick Start
 
